@@ -6,3 +6,4 @@ __pycache__/
 .DS_Store
 tests/fixtures/
 brain/vault/
+brain.key

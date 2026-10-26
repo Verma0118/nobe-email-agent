@@ -1,43 +1,47 @@
 #!/usr/bin/env python3
-"""NOBE shared outreach brain. One JSON file per contact in brain/contacts/,
-synced through this git repo so every exec member sees every claim.
+"""NOBE shared outreach brain client. The brain is a Google Sheet behind an
+Apps Script web app (server/Code.gs) owned by one exec member. Nobody else
+needs a Google or GitHub account: this tool calls the web app with the shared
+key from brain.key (or the NOBE_BRAIN_KEY environment variable).
 
-A contact is CLAIMED before drafting: the claim is committed and pushed. If two
-people claim the same email at once, git rejects the second push, the tool
-pulls, sees the claim, and refuses. Same person can never be emailed twice.
-Same company is allowed (different contact, maybe a different committee) but
-always warns with who already has it.
+A contact is CLAIMED before drafting. The server handles one write at a time,
+so if two people claim the same email at once the second is told it is taken.
+Same person can never be emailed twice. Same company is allowed (different
+contact, maybe a different committee) but always warns with who already has it.
 
-brain/vault/ is an Obsidian vault rebuilt from the JSON on every command
-(gitignored, never conflicts). Open that folder in Obsidian to browse.
+brain/vault/ is an Obsidian vault rebuilt from the Sheet on every command
+(local only, read-only). Open that folder in Obsidian to browse.
 
 Usage:
-    brain.py sync                                  pull + rebuild vault + summary
+    brain.py sync                                  fetch + rebuild vault + summary
     brain.py check EMAIL [--company NAME]          exit 0 new, 3 blocked
     brain.py claim --email E --name N --company C --committee consulting|tech|pd
                    [--role R] [--domain D] [--note TEXT]
     brain.py set EMAIL STATUS [--note TEXT] [--draft-id ID]
     brain.py list [--company C] [--sender S] [--status S] [--committee C]
     brain.py stale [--days 7]                      claims never sent
-    brain.py import FILE.json                      seed rows (list of contact dicts)
 
 Statuses: claimed, drafted, sent, replied, call, client, dead, released.
 Only 'released' (never sent) frees a contact for someone else.
 """
 import argparse
 import json
+import os
 import re
-import subprocess
 import sys
+import urllib.error
+import urllib.request
 from datetime import date, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BRAIN = ROOT / "brain"
-CONTACTS = BRAIN / "contacts"
-VAULT = BRAIN / "vault"
+VAULT = ROOT / "brain" / "vault"
 STATUSES = ["claimed", "drafted", "sent", "replied", "call", "client", "dead", "released"]
 BLOCKED = 3
+
+
+class BrainDown(Exception):
+    pass
 
 
 def cfg():
@@ -53,55 +57,34 @@ def now():
     return datetime.now().strftime("%Y-%m-%d %H:%M")
 
 
-# ---------- git ----------
+# ---------- server ----------
 
-def git(*args, check=True):
-    r = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True)
-    if check and r.returncode:
-        raise RuntimeError(f"git {' '.join(args)} failed: {r.stderr.strip() or r.stdout.strip()}")
-    return r
-
-
-def has_remote():
-    return bool(git("remote", check=False).stdout.strip())
-
-
-def pull():
-    """Pull latest claims. Returns False if a remote exists but cannot be reached."""
-    if not has_remote():
-        return True
-    r = git("pull", "--rebase", "--autostash", "-q", check=False)
-    if r.returncode:
-        git("rebase", "--abort", check=False)
-        print(f"PULL FAILED: {r.stderr.strip()}")
-        return False
-    return True
+def call(action, **payload):
+    url = os.environ.get("NOBE_BRAIN_URL") or cfg().get("brain_url", "")
+    key_file = ROOT / "brain.key"
+    key = os.environ.get("NOBE_BRAIN_KEY") or (key_file.read_text().strip() if key_file.exists() else "")
+    if not url:
+        raise BrainDown("no brain_url in config/nobe.json (owner: see server/SETUP.md)")
+    if not key:
+        raise BrainDown("no brain key. Ask the owner for it and run ./install.sh again")
+    body = json.dumps(dict(payload, action=action, key=key)).encode()
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    try:
+        # Apps Script answers a POST with a redirect to the result; urllib follows it as a GET.
+        with urllib.request.urlopen(req, timeout=30) as r:
+            res = json.loads(r.read().decode())
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        raise BrainDown(f"cannot reach the brain ({e})")
+    if res.get("error") == "bad key":
+        raise BrainDown("the brain rejected your key. Ask the owner for the current one")
+    return res
 
 
-def commit_and_push(path, message):
-    """Commit one contact file and push. Returns 'ok', 'conflict', or 'offline'."""
-    git("add", str(path))
-    git("commit", "-q", "-m", message)
-    if not has_remote():
-        return "ok"
-    for _ in range(3):
-        if not git("push", "-q", check=False).returncode:
-            return "ok"
-        r = git("pull", "--rebase", "-q", check=False)
-        if r.returncode:  # same file changed remotely: someone else got there first
-            git("rebase", "--abort", check=False)
-            git("reset", "--keep", "HEAD~1", check=False)
-            pull()
-            return "conflict"
-    git("reset", "--keep", "HEAD~1", check=False)
-    return "offline"
+def load_all():
+    return call("list")["rows"]
 
 
 # ---------- data ----------
-
-def slug(email):
-    return re.sub(r"[^a-z0-9._-]", "_", email.strip().lower().replace("@", "_at_"))
-
 
 def norm_company(name):
     n = re.sub(r"[^a-z0-9 ]", "", (name or "").lower())
@@ -113,35 +96,25 @@ def domain_of(email):
     return email.split("@", 1)[1].lower() if "@" in email else ""
 
 
-def load_all():
-    rows = []
-    for f in sorted(CONTACTS.glob("*.json")):
-        try:
-            rows.append(json.loads(f.read_text()))
-        except json.JSONDecodeError:
-            print(f"WARN: unreadable {f.name}")
-    return rows
-
-
-def find(email):
-    f = CONTACTS / f"{slug(email)}.json"
-    return (json.loads(f.read_text()), f) if f.exists() else (None, f)
+def find(rows, email):
+    email = email.strip().lower()
+    return next((r for r in rows if r["email"] == email), None)
 
 
 def same_company(rows, company, domain, email):
     key = norm_company(company)
-    return [r for r in rows if r["email"].lower() != email.lower()
+    return [r for r in rows if r["email"] != email.strip().lower()
             and ((key and norm_company(r.get("company")) == key) or (domain and r.get("domain") == domain))]
 
 
 def describe(r):
     return (f"{r['name']} <{r['email']}> | {r.get('company')} | {r.get('committee')} | "
-            f"{r.get('status')} | by {r.get('sender')} {r.get('updated_at', '')[:10]}")
+            f"{r.get('status')} | by {r.get('sender')} {str(r.get('updated_at', ''))[:10]}")
 
 
-def report(email, company):
+def report(rows, email, company):
     """Print the dedupe verdict. Returns True if the contact is blocked."""
-    row, _ = find(email)
+    row = find(rows, email)
     blocked = bool(row and row.get("status") != "released")
     if blocked:
         print(f"BLOCKED: already in the brain\n  {describe(row)}")
@@ -149,7 +122,7 @@ def report(email, company):
         print(f"RELEASED earlier (never sent), free to claim\n  {describe(row)}")
     else:
         print(f"NEW: {email} has never been contacted by NOBE")
-    others = same_company(load_all(), company or (row or {}).get("company", ""), domain_of(email), email)
+    others = same_company(rows, company or (row or {}).get("company", ""), domain_of(email), email)
     if others:
         print(f"WARN: {len(others)} other contact(s) at this company. Coordinate before sending:")
         for o in others:
@@ -176,7 +149,7 @@ def rebuild_vault(rows):
     committees = cfg()["committees"]
 
     by_company, names = {}, {}
-    for r in sorted(rows, key=lambda r: r.get("claimed_at", "")):
+    for r in sorted(rows, key=lambda r: str(r.get("claimed_at", ""))):
         key = norm_company(r.get("company")) or r.get("domain") or "unknown"
         names.setdefault(key, r.get("company") or r.get("domain") or "unknown")
         r = dict(r, company=names[key])
@@ -194,75 +167,60 @@ def rebuild_vault(rows):
     for company, rs in by_company.items():
         coms = sorted({r.get("committee") for r in rs})
         lines = "\n".join(f"| [[{contact_note(r)}]] | {r.get('role', '')} | {r.get('committee')} | "
-                          f"{r.get('status')} | {r.get('sender')} | {r.get('updated_at', '')[:10]} |" for r in rs)
+                          f"{r.get('status')} | {r.get('sender')} | {str(r.get('updated_at', ''))[:10]} |" for r in rs)
         (VAULT / "Companies" / f"{safe(company)}.md").write_text(
             f"---\ncommittees: [{', '.join(coms)}]\ncontacts: {len(rs)}\ntags: [nobe-company]\n---\n"
             f"# {company}\n\n| Contact | Role | Committee | Status | Sender | Updated |\n|---|---|---|---|---|---|\n{lines}\n")
 
     count = lambda key: {k: sum(1 for r in rows if r.get(key) == k) for k in sorted({r.get(key) for r in rows})}
-    recent = sorted(rows, key=lambda r: r.get("updated_at", ""), reverse=True)[:25]
+    recent = sorted(rows, key=lambda r: str(r.get("updated_at", "")), reverse=True)[:25]
     (VAULT / "Dashboard.md").write_text(
-        f"# NOBE Outreach Brain\n\nRebuilt {now()} from brain/contacts/ (do not edit this vault, "
+        f"# NOBE Outreach Brain\n\nRebuilt {now()} from the shared brain (do not edit this vault, "
         f"it is regenerated on every sync).\n\n"
         f"**{len(rows)} contacts at {len(by_company)} companies**\n\n"
         f"By status: {count('status')}\n\nBy committee: {count('committee')}\n\nBy sender: {count('sender')}\n\n"
-        f"## Most recent\n" + "\n".join(f"- {r.get('updated_at', '')[:10]} [[{contact_note(r)}]] "
+        f"## Most recent\n" + "\n".join(f"- {str(r.get('updated_at', ''))[:10]} [[{contact_note(r)}]] "
                                        f"{r.get('status')} ({r.get('committee')}, {r.get('sender')})" for r in recent) + "\n")
 
 
 # ---------- commands ----------
 
-def write_row(row, path, message):
-    CONTACTS.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(row, indent=2, ensure_ascii=False) + "\n")
-    return commit_and_push(path, message)
-
-
 def cmd_sync(a):
-    ok = pull()
     rows = load_all()
     rebuild_vault(rows)
-    print(f"brain: {len(rows)} contacts{'' if ok else ' (OFFLINE, may be stale)'} | vault: {VAULT}")
-    return 0 if ok else 1
+    print(f"brain: {len(rows)} contacts | vault: {VAULT}")
+    return 0
 
 
 def cmd_check(a):
-    if not pull():
-        print("Cannot reach the shared brain. Do not draft until sync works.")
-        return BLOCKED
-    return BLOCKED if report(a.email, a.company) else 0
+    return BLOCKED if report(load_all(), a.email, a.company) else 0
 
 
 def cmd_claim(a):
     if a.committee not in cfg()["committees"]:
         print(f"unknown committee {a.committee!r}")
         return 2
-    if not pull():
-        print("Cannot reach the shared brain, so the claim cannot be guaranteed. Not claiming.")
-        return BLOCKED
-    a.email = a.email.strip().lower()
-    if report(a.email, a.company):
+    email = a.email.strip().lower()
+    rows = load_all()
+    if report(rows, email, a.company):
         return BLOCKED
     # reuse the spelling already in the brain so one company stays one company
-    match = same_company(load_all(), a.company, domain_of(a.email), a.email)
+    match = same_company(rows, a.company, domain_of(email), email)
     company = match[0]["company"] if match else a.company
     by, at = sender(), now()
-    old, path = find(a.email)
-    history = (old or {}).get("history", []) + [{"at": at, "by": by, "status": "claimed", "note": a.note or ""}]
-    row = {"email": a.email, "name": a.name, "role": a.role or "", "company": company,
-           "domain": a.domain or domain_of(a.email), "committee": a.committee, "sender": by,
+    row = {"email": email, "name": a.name, "role": a.role or "", "company": company,
+           "domain": a.domain or domain_of(email), "committee": a.committee, "sender": by,
            "status": "claimed", "claimed_at": at, "updated_at": at, "gmail_draft_id": "",
-           "notes": a.note or "", "history": history}
-    result = write_row(row, path, f"brain: {by} claims {a.email} ({company}, {a.committee})")
-    if result == "conflict":
-        print("BLOCKED: someone claimed this contact a moment ago.")
-        report(a.email, a.company)
+           "notes": a.note or "", "history": [{"at": at, "by": by, "status": "claimed", "note": a.note or ""}]}
+    res = call("claim", row=row)
+    if res.get("blocked"):
+        print(f"BLOCKED: someone claimed this contact a moment ago.\n  {describe(res['row'])}")
         return BLOCKED
-    if result == "offline":
-        print("Push failed. Claim NOT saved. Check your connection and try again.")
+    if not res.get("ok"):
+        print(f"Claim failed: {res.get('error')}. Not claimed, do not draft.")
         return BLOCKED
     rebuild_vault(load_all())
-    print(f"CLAIMED: {a.email} for {by} ({a.committee}). Go ahead and draft.")
+    print(f"CLAIMED: {email} for {by} ({a.committee}). Go ahead and draft.")
     return 0
 
 
@@ -270,25 +228,10 @@ def cmd_set(a):
     if a.status not in STATUSES:
         print(f"status must be one of {', '.join(STATUSES)}")
         return 2
-    if not pull():
-        return 1
-    row, path = find(a.email)
-    if not row:
-        print(f"{a.email} is not in the brain. Claim it first.")
-        return 1
-    if a.status == "released" and row["status"] not in ("claimed", "drafted"):
-        print(f"cannot release: status is {row['status']} (already sent). It stays blocked.")
-        return 1
-    by, at = sender(), now()
-    row.update(status=a.status, updated_at=at)
-    if a.draft_id:
-        row["gmail_draft_id"] = a.draft_id
-    if a.note:
-        row["notes"] = (row.get("notes", "") + f"\n{at[:10]} {by}: {a.note}").strip()
-    row.setdefault("history", []).append({"at": at, "by": by, "status": a.status, "note": a.note or ""})
-    result = write_row(row, path, f"brain: {a.email} -> {a.status} by {by}")
-    if result != "ok":
-        print("Update not saved (someone changed this contact at the same time). Run it again.")
+    res = call("set", email=a.email.strip().lower(), status=a.status, note=a.note or "",
+               draft_id=a.draft_id or "", by=sender(), at=now())
+    if not res.get("ok"):
+        print(f"Not updated: {res.get('error')}")
         return 1
     rebuild_vault(load_all())
     print(f"{a.email}: {a.status}")
@@ -296,7 +239,6 @@ def cmd_set(a):
 
 
 def cmd_list(a):
-    pull()
     rows = load_all()
     for key in ("status", "committee"):
         if getattr(a, key):
@@ -312,39 +254,13 @@ def cmd_list(a):
 
 
 def cmd_stale(a):
-    pull()
     today = date.today()
     stale = [r for r in load_all() if r.get("status") in ("claimed", "drafted")
-             and (today - datetime.strptime(r["updated_at"][:10], "%Y-%m-%d").date()).days >= a.days]
+             and (today - datetime.strptime(str(r["updated_at"])[:10], "%Y-%m-%d").date()).days >= a.days]
     for r in stale:
         print(describe(r))
     print(f"--- {len(stale)} claimed/drafted {a.days}+ days ago and never sent. "
           f"Send them, or 'set EMAIL released' so someone else can.")
-    return 0
-
-
-def cmd_import(a):
-    if not pull():
-        return 1
-    rows, added = json.loads(Path(a.file).read_text()), 0
-    CONTACTS.mkdir(parents=True, exist_ok=True)
-    for r in rows:
-        r["email"] = r["email"].strip().lower()
-        existing, path = find(r["email"])
-        if existing:
-            continue
-        r.setdefault("domain", domain_of(r["email"]))
-        r.setdefault("history", [{"at": r.get("updated_at", now()), "by": r.get("sender", "import"),
-                                  "status": r["status"], "note": "imported"}])
-        path.write_text(json.dumps(r, indent=2, ensure_ascii=False) + "\n")
-        git("add", str(path))
-        added += 1
-    if added:
-        git("commit", "-q", "-m", f"brain: import {added} contacts")
-        if has_remote() and git("push", "-q", check=False).returncode:
-            print("push failed; run 'git pull --rebase && git push'")
-    rebuild_vault(load_all())
-    print(f"imported {added}, skipped {len(rows) - added} already present")
     return 0
 
 
@@ -364,10 +280,13 @@ def main():
     for f in ("company", "sender", "status", "committee"):
         p.add_argument(f"--{f}")
     p = sub.add_parser("stale"); p.add_argument("--days", type=int, default=7)
-    p = sub.add_parser("import"); p.add_argument("file")
     a = ap.parse_args()
-    return {"sync": cmd_sync, "check": cmd_check, "claim": cmd_claim, "set": cmd_set,
-            "list": cmd_list, "stale": cmd_stale, "import": cmd_import}[a.cmd](a)
+    try:
+        return {"sync": cmd_sync, "check": cmd_check, "claim": cmd_claim, "set": cmd_set,
+                "list": cmd_list, "stale": cmd_stale}[a.cmd](a)
+    except BrainDown as e:
+        print(f"BRAIN UNAVAILABLE: {e}\nDrafting is blocked until this works, so no one gets emailed twice.")
+        return BLOCKED
 
 
 if __name__ == "__main__":

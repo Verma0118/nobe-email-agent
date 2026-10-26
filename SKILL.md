@@ -18,8 +18,9 @@ to this skill's folder (`~/.claude/skills/nobe-email-agent/`).
 2. Read `config/nobe.json`. Check `cycle.semester` against today's date. If that semester has
    already started or ended, warn: "config says {semester}. Update `cycle` in config/nobe.json
    before sending." Do not draft until the sender confirms the cycle.
-3. Run `python3 tools/brain.py sync` (pulls the shared brain, rebuilds the Obsidian vault) and
-   `python3 tools/brain.py stale`. If sync says OFFLINE, say drafting is blocked until it works.
+3. Run `python3 tools/brain.py sync` (fetches the shared brain, rebuilds the Obsidian vault) and
+   `python3 tools/brain.py stale`. If it says BRAIN UNAVAILABLE, show the reason and say drafting is
+   blocked until it works (no key: ask the owner for the key, save it to `brain.key`).
 4. Greet in one block, then wait:
 
 ```
@@ -51,13 +52,13 @@ contact, not per company: a big company can have a Tech contact and a Consulting
 contact's role fits a different committee better (a strategy lead for a Tech pitch), say so in one
 line and ask which to use.
 
-## Shared brain (`brain/`, synced through this git repo)
+## Shared brain (a Google Sheet behind `brain_url`, reached with the key in `brain.key`)
 
-Every contact anyone on exec has emailed, or is drafting, lives in `brain/contacts/` as one JSON
-file. `tools/brain.py` is the only thing that writes there. Never hand-edit those files.
+Every contact anyone on exec has emailed, or is drafting, lives in the shared brain.
+`tools/brain.py` is the only way to read or write it. Never edit the Sheet by hand.
 - `check EMAIL --company C`: NEW, BLOCKED (already contacted, never draft), or a company WARN
   that lists who else at the company has been contacted, by whom, and for which committee.
-- `claim ...`: run **before drafting**. It pushes the claim so no one else can take the contact.
+- `claim ...`: run **before drafting**. The server records it so no one else can take the contact.
   If it says BLOCKED, stop and tell the sender who holds it.
 - `set EMAIL drafted|sent|replied|call|client|dead|released`: keep the status current.
   `released` only works if the email was never sent, and frees the contact for someone else.

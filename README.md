@@ -6,14 +6,18 @@ writes the email in NOBE's standard format, checks it, and hands it to you. It n
 
 ## Setup (5 minutes, once)
 
-You need [Claude Code](https://claude.com/claude-code) installed and signed in, plus Python 3.9+
-(already on every Mac).
+You need:
+- [Claude Code](https://claude.com/claude-code) installed and signed in (a Claude Pro account).
+- The **brain key**, sent to you privately by whoever runs the agent for NOBE.
+
+No GitHub account needed. Paste this in Terminal:
 
 ```bash
-git clone <this repo> ~/nobe-email-agent
-cd ~/nobe-email-agent
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/Verma0118/nobe-email-agent/main/get.sh | bash
 ```
+
+It downloads the agent to `~/nobe-email-agent`, asks for the brain key, and sets everything up.
+**To update later, run the same command.** Your profile and key are kept.
 
 Then type:
 
@@ -74,12 +78,15 @@ Full rules: `rules/template.md` and `rules/writing-rules.md`.
 
 ## The shared brain (no double emails)
 
-Every contact anyone on exec has emailed lives in `brain/contacts/` in this repo, one file per
-person. The agent pulls it before every draft and **claims** the contact (commit + push) before
-writing a word. If someone else already has that person, you get BLOCKED with who and when. If
-two people claim the same person at the same second, git rejects the second push and that
-person gets BLOCKED. Contacting the same company again is allowed (a different contact, maybe a
-different committee), but the agent shows you who else at that company is already in progress.
+Every contact anyone at NOBE has emailed lives in one shared brain: a Google Sheet the owner
+runs, reached over the internet with the brain key. Nobody else needs a Google or GitHub account.
+Before writing a word, the agent **claims** the contact. If someone already has that person, you
+get BLOCKED with who and when. The server handles one claim at a time, so if two people claim the
+same person at the same second, one wins and the other is BLOCKED. If the brain cannot be reached
+(no internet, wrong key), drafting is blocked rather than risking a double email.
+
+Contacting the same company again is allowed (a different contact, maybe a different committee),
+but the agent shows you who else at that company is already in progress.
 
 Keep statuses current by telling the agent: "sent", "jane@acme.com replied", "call booked with
 Acme", "mark Acme dead". It runs `tools/brain.py set`.
@@ -88,12 +95,16 @@ Acme", "mark Acme dead". It runs `tools/brain.py set`.
 note per company, and one note per contact, rebuilt every time the agent runs. It is read-only:
 edits there get overwritten. Add notes through the agent instead ("note on jane@acme.com: ...").
 
-You need write access to this repo (ask the owner to add you) because claims are pushed.
-
 ## Each semester (one person on exec)
 
-Edit `cycle` in `config/nobe.json` (semester, months), run `tests/run_tests.sh`, commit, push.
-Everyone else runs `git pull`. The pitch paragraph and checker update from that one file.
+The owner edits `cycle` in `config/nobe.json` (semester, months), runs `tests/run_tests.sh`, and
+pushes. Everyone else reruns the install command to update. The pitch paragraph and checker
+update from that one file.
+
+## Owner setup (once)
+
+The brain server is a Google Sheet with a small script. Steps: `server/SETUP.md`. Then put the
+web app URL in `config/nobe.json` as `brain_url`, and send the key to exec privately.
 
 ## What's in here
 
@@ -108,10 +119,11 @@ modes/draft.md           research > draft > check > approve
 tools/research.py        fetches a company page: summary, headings, emails, links
 tools/lint_draft.py      hard-fail checker (format, banned words, fixed lines, length)
 tools/brain.py           shared brain: check, claim, set status, list, stale, sync
-brain/contacts/          one JSON per contacted person (written only by brain.py)
-brain/vault/             Obsidian view of the brain (generated, gitignored)
+brain/vault/             Obsidian view of the brain (generated, local only)
+server/                  the brain server (Google Apps Script) + owner setup steps
+get.sh / install.sh      one-line install and update, no git needed
 agents/                  reviewer that reads the draft as the recipient would
-tests/                   checker tests (run_tests.sh)
+tests/                   checker + brain tests (run_tests.sh, uses a local fake server)
 targets/                 your target lists (gitignored, local only)
 ```
 

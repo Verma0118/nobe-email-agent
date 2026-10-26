@@ -2,7 +2,7 @@
 # Runs lint_draft.py on every fixture. Name: <pass|fail>__<committee>__<what>.txt
 # Uses tests/profile.test.json (fictional sender) so results never depend on a real profile.
 cd "$(dirname "$0")"
-python3 make_fixtures.py >/dev/null
+rm -f fixtures/*.txt; python3 make_fixtures.py >/dev/null
 ok=0; bad=0
 for f in fixtures/*.txt; do
   b=$(basename "$f" .txt); expect=${b%%__*}; rest=${b#*__}; com=${rest%%__*}
@@ -14,4 +14,5 @@ for f in fixtures/*.txt; do
   fi
 done
 echo "---"; echo "$ok passed, $bad wrong"
+./brain_test.sh || bad=$((bad+1))
 [ $bad -eq 0 ]
