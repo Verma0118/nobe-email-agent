@@ -1,3 +1,5 @@
+/** @OnlyCurrentDoc  Limits this script to this one spreadsheet. */
+
 /**
  * NOBE outreach brain: a Google Sheet behind a tiny web API.
  * The owner deploys this once (see server/SETUP.md). Exec members never need a
