@@ -7,14 +7,16 @@ the subject label change by committee. `{field}` values come from `profile.json`
 ## Subject
 
 ```
-[Company] x NOBE | {committee.subject_label}, {cycle.semester}
+[Company] x NOBE x [Committee] Project
 ```
-Examples:
-- `Acme Robotics x NOBE | Student Engineering Project, Spring 2027`
-- `Prairie Heat x NOBE | Student Consulting Project, Spring 2027`
-- `FieldLens x NOBE | Student Software Project, Spring 2027`
+The last part is the committee this contact's project belongs to:
+- `Acme Robotics x NOBE x Product Development Project`
+- `Prairie Heat x NOBE x Consulting Project`
+- `FieldLens x NOBE x Tech Project`
 
-Pipe separators. No em dash, no emoji, no "Re:", no extra words.
+Pick the committee per contact, not per company. A big company can get a Tech email to an
+engineering manager and a Consulting email to a strategy lead, as separate contacts. Lowercase
+"x", single spaces, nothing else in the line.
 
 ## Body (110-200 words between greeting and signature)
 

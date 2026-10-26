@@ -4,8 +4,15 @@ Trigger: a company name or URL, "email the founder of X", a row from a targets C
 
 ## 1. Gate
 1. Committee: `consulting`, `tech`, or `pd` (see SKILL.md). Say "Committee: [name]".
-2. Ask once: "Has anyone on exec already contacted [company] this cycle?" If yes, stop.
-3. Find the contact per `rules/writing-rules.md` section 3. Say who and why, with the evidence.
+2. Find the contact per `rules/writing-rules.md` section 3. Say who and why, with the evidence.
+3. `python3 tools/brain.py check <email> --company "<company>"`.
+   - BLOCKED: stop. Tell the sender who already has this person and their status. Offer a
+     different contact at the company instead.
+   - WARN (same company, other contacts): show the list. If someone else on exec holds an active
+     thread there, tell the sender to coordinate with them before going further.
+4. `python3 tools/brain.py claim --email <e> --name "<n>" --role "<r>" --company "<c>" --committee <com>`.
+   Only a CLAIMED result lets you continue. Claim before research, so no one else starts the same
+   person while you work.
 
 ## 2. Research (run in parallel)
 - `python3 tools/research.py <company site> --links`, then the 1-3 most useful same-site links
@@ -24,9 +31,10 @@ What they do (1-2 sentences):
 Contact: name, role, email, evidence (site / pattern + MX / generic inbox):
 Hook facts (2-3, each with source URL):
 Project idea for [committee] (one concrete deliverable from config):
-Past NOBE client? (ask if unknown):
+Brain: other contacts at this company (from check):
 ```
-No sourced hook or no concrete deliverable: tell the sender and ask before drafting.
+No sourced hook or no concrete deliverable: tell the sender and ask before drafting. If they drop
+it, run `brain.py set <email> released`.
 
 ## 3. Draft
 Read `rules/template.md` and `rules/writing-rules.md` **every time**. Fill the skeleton from
@@ -49,5 +57,6 @@ Iterate until the sender says "approve".
    the CCs.
 2. If `schedule_after_noon` and it is after 12pm: "Schedule-send for 8am tomorrow."
 3. Remind: "Attach the NOBE overview PDF before sending."
-4. Append the row to `targets/sent-log.csv` (date, committee, company, contact, email, hook
-   source, gmail_draft_id). Create the file with a header if it does not exist.
+4. `python3 tools/brain.py set <email> drafted --draft-id <id> --note "hook: <source url>"`.
+5. Tell the sender: "After you send it, say 'sent' (or run `brain.py set <email> sent`)."
+   When they report a reply, call, or no answer later, update the status the same way.

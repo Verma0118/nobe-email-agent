@@ -19,7 +19,7 @@ COMPANY = {"consulting": "Prairie Heat", "tech": "FieldLens", "pd": "Acme Roboti
 
 
 def draft(com):
-    return f"""Subject: {COMPANY[com]} x NOBE | {cfg['committees'][com]['subject_label']}, {cfg['cycle']['semester']}
+    return f"""Subject: {COMPANY[com]} x NOBE x {cfg['committees'][com]['subject_label']}
 
 Good Morning Sam!
 
@@ -47,8 +47,9 @@ jlee@illinois.edu
 FAILS = {
     "em_dash": lambda d: d.replace("this year.", "this year — and growing.").replace("recently launched", "recently — launched"),
     "contraction": lambda d: d.replace("I am a Project", "I'm a Project"),
-    "old_semester": lambda d: d.replace(cfg["cycle"]["semester"], "Fall 2026"),
-    "wrong_label": lambda d: d.replace("Student Engineering Project", "Engineering Project"),
+    "old_subject_format": lambda d: d.replace("x NOBE x Product Development Project", "x NOBE | Engineering Project, Fall 2026"),
+    "wrong_committee_label": lambda d: d.replace("Product Development Project", "Tech Project"),
+    "old_pitch_months": lambda d: d.replace(cfg["cycle"]["start_month"] + " to", "September to"),
     "edited_pitch": lambda d: d.replace("All we ask is", "We just need"),
     "no_attach_line": lambda d: d.replace(ATTACH_LINE + " ", ""),
     "hi_greeting": lambda d: d.replace("Good Morning Sam!", "Hi Sam,"),

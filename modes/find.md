@@ -12,10 +12,12 @@ Use the committee's `good_targets` in `config/nobe.json` as the default filter.
   finalists and winners pages (as a source of startups, never mentioned in the email), local
   business directories, Chicago startup lists, industry news.
 - If an `exa` MCP tool is available, use `company_research` / web search for each candidate.
-- Prior NOBE clients are the easiest yes. Ask the sender if exec keeps a list of past clients.
+- Prior NOBE clients are the easiest yes: `brain.py list --status client` and `--status call`.
 
 ## 3. Check each candidate
 For each company, `python3 tools/research.py <site> --links`, then the team or about page.
+Run `python3 tools/brain.py list --company "<name>"` for each. Contacts already in the brain are
+never listed again. A company with active threads goes in the table with a note "in brain: <who>".
 Keep it only if all are true:
 - Real and active (site loads, recent news, product, or job post within ~12 months).
 - Small enough to want a student team (startups, SMBs, nonprofits). A big company goes in tier 3

@@ -21,7 +21,7 @@
   "committees": {
     "consulting": {
       "name": "Consulting Committee",
-      "subject_label": "Student Consulting Project",
+      "subject_label": "Consulting Project",
       "experience": "consulting",
       "deliverables": [
         "a market-sizing and customer-segment study for a new product line",
@@ -35,7 +35,7 @@
     },
     "tech": {
       "name": "Tech Committee",
-      "subject_label": "Student Software Project",
+      "subject_label": "Tech Project",
       "experience": "software engineering",
       "deliverables": [
         "an internal dashboard that pulls data the team currently tracks by hand",
@@ -49,7 +49,7 @@
     },
     "pd": {
       "name": "Product Development Committee",
-      "subject_label": "Student Engineering Project",
+      "subject_label": "Product Development Project",
       "experience": "engineering",
       "deliverables": [
         "CAD and a 3D-printed prototype of a new part or fixture",

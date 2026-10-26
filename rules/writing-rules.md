@@ -36,14 +36,15 @@ Rule of thumb: if a college student would not say it out loud to a founder, cut 
   (first@domain seen elsewhere), or a verifier result. Guessing is not evidence.
 - New domain: run `dig +short MX <domain>`. No MX record means it cannot receive mail.
 - If only a generic inbox exists (info@, hello@), use it with the generic greeting.
-- Do not email the same company twice in one cycle. Ask the sender whether anyone on exec already
-  contacted them, and check `targets/` for earlier lists.
+- Never email a person already in the shared brain (`tools/brain.py check`). Same company with a
+  different person is allowed, but coordinate with whoever holds the other thread.
 
 ## 4. Approval and sending
 
 - Never send. The agent drafts. The sender reads it, attaches the NOBE overview PDF, and sends.
 - Never create a Gmail draft without an explicit "approve" from the sender.
 - One Gmail draft per company. Get wording final first.
+- Keep the brain status current: drafted, then sent, then replied / call / client / dead.
 - CC every email to the addresses in `config/nobe.json` `cc` plus `profile.json` `extra_cc`.
 - If `schedule_after_noon` is true and it is after 12pm, tell the sender to schedule-send for
   8am the next morning.

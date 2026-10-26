@@ -43,8 +43,9 @@ yourself.
 
 ## The email
 
-Subject: `[Company] x NOBE | Student Engineering Project, Spring 2027`
-(the label changes by committee: Consulting / Software / Engineering)
+Subject: `[Company] x NOBE x [Committee] Project`, for example
+`Acme x NOBE x Consulting Project`, `Acme x NOBE x Tech Project`, `Acme x NOBE x Product Development Project`.
+The committee is picked per contact, so one company can hear from more than one committee.
 
 ```
 Good Morning [Name]!
@@ -71,11 +72,28 @@ Looking forward to hearing from you!
 
 Full rules: `rules/template.md` and `rules/writing-rules.md`.
 
+## The shared brain (no double emails)
+
+Every contact anyone on exec has emailed lives in `brain/contacts/` in this repo, one file per
+person. The agent pulls it before every draft and **claims** the contact (commit + push) before
+writing a word. If someone else already has that person, you get BLOCKED with who and when. If
+two people claim the same person at the same second, git rejects the second push and that
+person gets BLOCKED. Contacting the same company again is allowed (a different contact, maybe a
+different committee), but the agent shows you who else at that company is already in progress.
+
+Keep statuses current by telling the agent: "sent", "jane@acme.com replied", "call booked with
+Acme", "mark Acme dead". It runs `tools/brain.py set`.
+
+**Browse it in Obsidian:** open the folder `brain/vault/` as a vault. It has a Dashboard, one
+note per company, and one note per contact, rebuilt every time the agent runs. It is read-only:
+edits there get overwritten. Add notes through the agent instead ("note on jane@acme.com: ...").
+
+You need write access to this repo (ask the owner to add you) because claims are pushed.
+
 ## Each semester (one person on exec)
 
 Edit `cycle` in `config/nobe.json` (semester, months), run `tests/run_tests.sh`, commit, push.
-Everyone else runs `git pull`. The subject line, pitch paragraph, and checker all update from that
-one file.
+Everyone else runs `git pull`. The pitch paragraph and checker update from that one file.
 
 ## What's in here
 
@@ -89,13 +107,16 @@ modes/find.md            building a target list
 modes/draft.md           research > draft > check > approve
 tools/research.py        fetches a company page: summary, headings, emails, links
 tools/lint_draft.py      hard-fail checker (format, banned words, fixed lines, length)
+tools/brain.py           shared brain: check, claim, set status, list, stale, sync
+brain/contacts/          one JSON per contacted person (written only by brain.py)
+brain/vault/             Obsidian view of the brain (generated, gitignored)
 agents/                  reviewer that reads the draft as the recipient would
 tests/                   checker tests (run_tests.sh)
-targets/                 your target lists and sent log (gitignored, local only)
+targets/                 your target lists (gitignored, local only)
 ```
 
 ## Rules that never bend
 
 - It never sends email. You send.
 - Every fact in the hook comes from a page it actually read.
-- Check with exec before emailing a company. Do not double-email the same company in a cycle.
+- No draft without a claim in the shared brain. Same person is never emailed twice.

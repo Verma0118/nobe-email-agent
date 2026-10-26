@@ -11,8 +11,8 @@ Usage:
     lint_draft.py DRAFT --committee consulting|tech|pd [--profile profile.json] [--config config/nobe.json]
 Exit 0 = PASS (warnings allowed), 1 = FAIL, 2 = usage error.
 
-The subject label, semester, and the fixed pitch paragraph are built from
-config/nobe.json, so a new semester only needs a config change.
+The subject label and the fixed pitch paragraph (with the semester's months)
+are built from config/nobe.json, so a new semester only needs a config change.
 """
 import argparse
 import html
@@ -86,12 +86,11 @@ def lint(raw, committee, cfg, profile):
     low = " ".join(visible.lower().split())
 
     # subject
-    want = rf"^[^|]+ x NOBE \| {re.escape(com['subject_label'])}, {re.escape(cfg['cycle']['semester'])}$"
+    want = rf"^[^|]+ x NOBE x {re.escape(com['subject_label'])}$"
     if subject is None:
         fails.append("no 'Subject:' first line")
     elif not re.match(want, subject):
-        fails.append(f"subject must be '[Company] x NOBE | {com['subject_label']}, "
-                     f"{cfg['cycle']['semester']}', got {subject!r}")
+        fails.append(f"subject must be '[Company] x NOBE x {com['subject_label']}', got {subject!r}")
 
     # greeting: named or generic, Morning/Afternoon, ends with '!'
     if not re.fullmatch(r"Good (Morning|Afternoon)( [A-Z][\w.'’-]*( [A-Z][\w.'’-]*)?)?!", greeting.strip()):
