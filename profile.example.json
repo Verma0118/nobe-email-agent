@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy to profile.json (install.sh does this) and fill in. profile.json is gitignored.",
+  "name": "Jordan Lee",
+  "first_name": "Jordan",
+  "nobe_role": "Project Manager",
+  "default_committee": "pd",
+  "year": "Junior",
+  "major": "Mechanical Engineering",
+  "degree_line": "B.S. Mechanical Engineering",
+  "sending_email": "jlee@illinois.edu",
+  "linkedin_url": "https://www.linkedin.com/in/jordanlee/",
+  "linkedin_display": "www.linkedin.com/in/jordanlee",
+  "phone": "",
+  "extra_cc": [],
+  "schedule_after_noon": true
+}

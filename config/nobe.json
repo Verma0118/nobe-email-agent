@@ -1,0 +1,65 @@
+{
+  "_comment": "Org-wide settings. Update 'cycle' once per semester; everything else rarely changes.",
+  "cycle": {
+    "semester": "Spring 2027",
+    "start_month": "January",
+    "end_month": "April",
+    "weeks": 12,
+    "extension": "the fall"
+  },
+  "org": {
+    "name": "NOBE",
+    "full_name": "National Organization for Business and Engineering",
+    "one_liner": "a student business and engineering organization at the University of Illinois Urbana-Champaign",
+    "school_short": "UIUC",
+    "local_area": "Champaign-Urbana",
+    "website": "https://nobeillinois.org",
+    "overview_attachment": "NOBE overview PDF (attach by hand before sending)"
+  },
+  "cc": ["outreach@nobeillinois.org"],
+  "banned_extra": ["COZAD", "free labor", "unpaid"],
+  "committees": {
+    "consulting": {
+      "name": "Consulting Committee",
+      "subject_label": "Student Consulting Project",
+      "experience": "consulting",
+      "deliverables": [
+        "a market-sizing and customer-segment study for a new product line",
+        "a competitor and pricing analysis",
+        "a go-to-market plan for a new region or customer type",
+        "an operations or cost-down review of a specific process",
+        "customer discovery interviews with a written findings report"
+      ],
+      "good_targets": "early and growth-stage startups, local small and mid-size businesses, nonprofits, incubator tenants (EnterpriseWorks, Research Park)",
+      "hook_sources": "a recent launch, expansion, new market, funding round, hiring push, or a stated growth goal on their site or in the news"
+    },
+    "tech": {
+      "name": "Tech Committee",
+      "subject_label": "Student Software Project",
+      "experience": "software engineering",
+      "deliverables": [
+        "an internal dashboard that pulls data the team currently tracks by hand",
+        "an integration between two tools they already use",
+        "a mobile or web feature from their public roadmap or feature-request board",
+        "an automation script or small internal tool",
+        "a prototype of a customer-facing web app"
+      ],
+      "good_targets": "startups and small companies with a small or no engineering team, local businesses running on spreadsheets, nonprofits, software startups with public roadmaps",
+      "hook_sources": "their product, public docs or API, a job post for an engineering role, a changelog or roadmap, or a visible gap in their site or app"
+    },
+    "pd": {
+      "name": "Product Development Committee",
+      "subject_label": "Student Engineering Project",
+      "experience": "engineering",
+      "deliverables": [
+        "CAD and a 3D-printed prototype of a new part or fixture",
+        "a redesign of an existing component for weight or cost",
+        "FEA or test validation of a part",
+        "a test rig or fixture for their line",
+        "design for manufacturing review of a current product"
+      ],
+      "good_targets": "hardware startups, robotics, cleantech, agtech, medical devices, local manufacturers, incubator hardware tenants",
+      "hook_sources": "a specific product, subsystem, or part on their site, a recent prototype or launch, a hardware job post, or a published spec"
+    }
+  }
+}
