@@ -16,7 +16,7 @@
     "website": "https://nobeillinois.org",
     "overview_attachment": "NOBE overview PDF (attach by hand before sending)"
   },
-  "brain_url": "",
+  "brain_url": "https://script.google.com/macros/s/AKfycbwk1fP86AjXiWjKZWxlRcdA_lCgGThGu26HAO8Lq9DNOVyoohjn3OVH-VHnVNnO4ufxQw/exec",
   "cc": ["outreach@nobeillinois.org"],
   "banned_extra": ["COZAD", "free labor", "unpaid"],
   "committees": {

@@ -21,6 +21,7 @@ function setup() {
   if (!sh) sh = ss.insertSheet(SHEET_NAME);
   sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
   sh.setFrozenRows(1);
+  sh.getRange(1, 1, sh.getMaxRows(), HEADERS.length).setNumberFormat('@');  // keep dates as plain text
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('KEY')) props.setProperty('KEY', Utilities.getUuid());
   Logger.log('Shared key (send this privately to exec): ' + props.getProperty('KEY'));
@@ -50,15 +51,20 @@ function readAll() {
   const values = sheet().getDataRange().getValues();
   return values.slice(1).map((v, i) => {
     const row = {};
-    HEADERS.forEach((h, j) => { row[h] = v[j] === undefined ? '' : String(v[j]); });
+    HEADERS.forEach((h, j) => { row[h] = cell(v[j]); });
     try { row.history = JSON.parse(row.history || '[]'); } catch (err) { row.history = []; }
     return { index: i + 2, row: row };
   });
 }
 
+function cell(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  return v === undefined || v === null ? '' : String(v);
+}
+
 function write(index, row) {
   const vals = HEADERS.map(h => h === 'history' ? JSON.stringify(row.history || []) : (row[h] || ''));
-  sheet().getRange(index, 1, 1, HEADERS.length).setValues([vals]);
+  sheet().getRange(index, 1, 1, HEADERS.length).setNumberFormat('@').setValues([vals]);
 }
 
 function find(email) {
