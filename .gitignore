@@ -4,4 +4,4 @@ targets/
 __pycache__/
 *.pyc
 .DS_Store
-tests/fixtures/fail__*.txt
+tests/fixtures/
